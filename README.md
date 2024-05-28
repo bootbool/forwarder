@@ -19,3 +19,11 @@ Actor:   Client   --->   Forwarder  ---> Real Server
 
  - Connection listener, a daemon running on user mode, aims to accept  the connection from client and parse the instruction data, and initiate connection to real server. Then notify the kernel forwarder the dual connection file description. 
  - Kernel forwarder, a netfilter module running on kernel mode,  modify the package data , and forward it to real server.
+
+# Interface
+
+/proc/forwarder is root folder for configuration, under which the  files  and the corresponding functionality are listed by the following.
+- listen_port, sets the tcp port which is listened by connection listener, accepting new connection from clients.
+- forward, listener daemon writes socket file description pair to this file, corresponding to the upper fd-c and fd-s.
+- show , shows all connection pairs that are handled by forwarder.
+
