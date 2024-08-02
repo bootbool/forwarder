@@ -15,11 +15,11 @@ Actor:   Client   --->   Forwarder  ---> Real Server
  5. After the dual connection is finished, Forwarder build a data struct containing fd-c, fd-s, and the tcp sequence number difference value. Then a acknowledge response to sent back to Client.
  6. Client receives the response,  start the normal data transmission.
 
-<img src="images/overall.drawio.svg"/>
+<img src="docs/overall.drawio.svg"/>
 
 `The tcp package seq/ack number should be modified during SNAT/DNAT transmission by Forward server, as some data is consumed by route message parser`
 
-<img src="images/seq-ack.png"/>
+<img src="docs/seq-ack.png"/>
 
 
 ## Program component
