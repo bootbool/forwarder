@@ -22,43 +22,46 @@
 
 static struct tcp_pcb *tcp_default_daemon;
 
-
-static void
-conn_pair_session_close(struct conn_pair_session *ss)
+static inline void _conn_pair_session_destroy( struct conn_pair_session *ss, int reset )
 {
     struct tcp_pcb *pcb;
 
     if( ss->pcb_from ) {
         pcb = ss->pcb_from;
         ss->pcb_from = NULL;
-        tcp_abandon(pcb, 0);
+        tcp_arg(pcb, NULL);
+        tcp_sent(pcb, NULL);
+        tcp_recv(pcb, NULL);
+        tcp_err(pcb, NULL);
+        tcp_poll(pcb, NULL, 0);
+        tcp_abandon(pcb, reset);
     }
     if( ss->pcb_to ) {
         pcb = ss->pcb_to;
         ss->pcb_to = NULL;
-        tcp_abandon(pcb, 0);
+        tcp_arg(pcb, NULL);
+        tcp_sent(pcb, NULL);
+        tcp_recv(pcb, NULL);
+        tcp_err(pcb, NULL);
+        tcp_poll(pcb, NULL, 0);
+        tcp_abandon(pcb, reset);
     }
     if( --ss->used < 1 ) 
         mem_free(ss);
 }
 
+
+static void
+conn_pair_session_close(struct conn_pair_session *ss)
+{
+    _conn_pair_session_destroy(ss, 0);
+}
+
 static void
 conn_pair_session_reset(struct conn_pair_session *ss)
 {
-    struct tcp_pcb *pcb;
+     _conn_pair_session_destroy(ss, 1);
 
-    if( ss->pcb_from ) {
-        pcb = ss->pcb_from;
-        ss->pcb_from = NULL;
-        tcp_abandon(pcb, 1);
-    }
-    if( ss->pcb_to ) {
-        pcb = ss->pcb_to;
-        ss->pcb_to = NULL;
-        tcp_abandon(pcb, 1);
-    }
-    if( --ss->used < 1 ) 
-        mem_free(ss);
 }
 
 int deploy_conn_session( struct conn_pair_session *ss )
@@ -68,7 +71,7 @@ int deploy_conn_session( struct conn_pair_session *ss )
     client = &ss->pair.stage1;
     server = &ss->pair.stage2;
     print_debug("-----paired-----");
-    print_debug("%x:%d->%x:%d(remote_seq %d local_seq %d)  %x:%d->%x:%d(seq %d ack %d)", 
+    print_debug("%x:%d->%x:%d(remote_seq %d local_seq %d)  %x:%d->%x:%d(remoteseq %d localseq %d)", 
         client->remote_ip, client->remote_port, client->local_ip, client->local_port, client->remote_seq, client->local_seq, 
         server->remote_ip, server->remote_port, server->local_ip, server->local_port, server->remote_seq, server->local_seq);
     
@@ -334,7 +337,8 @@ static err_t conn_pair_stage_1(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, 
             conn_pair_session_reset(session);
             return ERR_OK;
         }
-        tpcb->rcv_nxt = session->pair.stage1.remote_seq;
+        session->pair.stage1.remote_seq = tpcb->rcv_nxt;
+        session ->pair.stage1.local_seq = tpcb->snd_nxt;
         tpcb->rcv_wnd = 0;
 
         ret_err = parse_route_msg(session, p->payload);
@@ -374,7 +378,7 @@ static err_t tcp_accept_cb(void *arg, struct tcp_pcb *newpcb, err_t err)
     if ((err != ERR_OK) || (newpcb == NULL)) {
         return ERR_VAL;
     }
-
+    print_debug("-----Accept new-----");
     /* Unless this pcb should have NORMAL priority, set its priority now.
         When running out of pcbs, low priority pcbs can be aborted to create
         new pcbs of higher priority. */
