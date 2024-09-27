@@ -2,7 +2,7 @@
 #define _H_CONN_PAIR_H_
 
 #include "types.h"
-#include "global_conn_pair.h"
+#include "conn_pair.h"
 
 struct conn_pair_session
 {
@@ -13,7 +13,7 @@ struct conn_pair_session
   struct tcp_pcb *pcb_to;
   /* staging for incoming route message*/
   struct pbuf *pkt;
-  conn_pair pair;
+  struct conn_pair pair;
   void *extend[0];
 };
 

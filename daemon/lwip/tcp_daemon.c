@@ -13,7 +13,7 @@
 #include "lwip/init.h"
 
 #include "log.h"
-#include "conn_pair.h"
+#include "daemon_session.h"
 #include "setting.h"
 
 #include <string.h>
@@ -67,13 +67,13 @@ conn_pair_session_reset(struct conn_pair_session *ss)
 int deploy_conn_session( struct conn_pair_session *ss )
 {
     ss->state = PAIR_PAIRED;
-    conn *client, *server;
+    struct conn *client, *server;
     client = &ss->pair.stage1;
     server = &ss->pair.stage2;
     print_debug("-----paired-----");
     print_debug("%x:%d->%x:%d(remote_seq %d local_seq %d)  %x:%d->%x:%d(remoteseq %d localseq %d)", 
-        client->remote_ip, client->remote_port, client->local_ip, client->local_port, client->remote_seq, client->local_seq, 
-        server->remote_ip, server->remote_port, server->local_ip, server->local_port, server->remote_seq, server->local_seq);
+        client->key.remote_ip, client->key.remote_port, client->key.local_ip, client->key.local_port, client->remote_seq, client->local_seq, 
+        server->key.remote_ip, server->key.remote_port, server->key.local_ip, server->key.local_port, server->remote_seq, server->local_seq);
     
     conn_pair_session_close(ss);
 }
@@ -93,14 +93,14 @@ static err_t conn_pair_stage_2_finish(void *arg, struct tcp_pcb *tpcb, err_t err
     struct conn_pair_session * session = (struct conn_pair_session *)arg;
     session->pcb_to = tpcb;
     session->used = 2;
-    session->pair.stage2.proto = IP_PROTO_TCP;
+    session->pair.stage2.key.proto = IP_PROTO_TCP;
     session->pair.stage2.remote_seq = tpcb->rcv_nxt;
     session ->pair.stage2.local_seq = tpcb->snd_nxt;
-    session->pair.stage2.remote_ip = tpcb->remote_ip.addr;
-    session->pair.stage2.remote_port = tpcb->remote_port;
-    session->pair.stage2. local_ip = tpcb->local_ip.addr;
-    session->pair.stage2.local_port = tpcb->local_port;
-    session->state = PAIR_CONNECTED_PEER;
+    session->pair.stage2.key.remote_ip = tpcb->remote_ip.addr;
+    session->pair.stage2.key.remote_port = tpcb->remote_port;
+    session->pair.stage2.key.local_ip = tpcb->local_ip.addr;
+    session->pair.stage2.key.local_port = tpcb->local_port;
+    session->state = PAIR_CONNECTION_STAGE2;
     tpcb->rcv_wnd = 0;
     print_debug("Conn pair finished");
     deploy_conn_session(session);
@@ -219,9 +219,9 @@ struct tcp_pcb* conn_pair_stage_2(struct conn_pair_session *session)
     
     tcp_arg(tcp_client_pcb, session);
     tcp_bind(tcp_client_pcb, &ip, port);
-    ip.addr = session->pair.stage2.remote_ip;
+    ip.addr = session->pair.stage2.key.remote_ip;
     tcp_connect(tcp_client_pcb, &ip, 
-        session->pair.stage2.remote_port, conn_pair_stage_2_finish);
+        session->pair.stage2.key.remote_port, conn_pair_stage_2_finish);
     tcp_recv(tcp_client_pcb, conn_pair_stage_2_omit_msg);
     tcp_err(tcp_client_pcb, conn_pair_err);
 
@@ -286,11 +286,11 @@ int parse_route_msg(struct conn_pair_session *ss, char *payload)
         return ERRCODE_FORMAT;
     }
     ss->nat_type = atoi(nat_type);
-    ss->pair.stage2.remote_ip = ip_string_to_int(s1);
-    ss->pair.stage2.remote_port = atoi(s2);
+    ss->pair.stage2.key.remote_ip = ip_string_to_int(s1);
+    ss->pair.stage2.key.remote_port = atoi(s2);
     if( ss->nat_type 
-        && ss->pair.stage2.remote_ip
-        && ss->pair.stage2.remote_port ) 
+        && ss->pair.stage2.key.remote_ip
+        && ss->pair.stage2.key.remote_port ) 
     {
         return ERRCODE_OK;
     }
@@ -327,7 +327,7 @@ static err_t conn_pair_stage_1(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, 
         return ret_err;
     }
     /* first packet should contain route info */
-    if(session->state == PAIR_ACCEPTED) {
+    if(session->state == PAIR_CONNECTION_STAGE1) {
         /* first data chunk in p->payload */
         session->state = PAIR_RECEIVED_ROUTE;
 
@@ -390,16 +390,16 @@ static err_t tcp_accept_cb(void *arg, struct tcp_pcb *newpcb, err_t err)
         return ERR_MEM;
     }
     memset(session, 0, sizeof(struct conn_pair_session));
-    session->state = PAIR_ACCEPTED;
+    session->state = PAIR_CONNECTION_STAGE1;
     session->used = 1;
     session->pcb_from = newpcb;
-    session->pair.stage1.proto = IP_PROTO_TCP;
+    session->pair.stage1.key.proto = IP_PROTO_TCP;
     session->pair.stage1.remote_seq = newpcb->rcv_nxt;
     session ->pair.stage1.local_seq = newpcb->snd_nxt;
-    session->pair.stage1.remote_ip = newpcb->remote_ip.addr;
-    session->pair.stage1.remote_port = newpcb->remote_port;
-    session->pair.stage1. local_ip = newpcb->local_ip.addr;
-    session->pair.stage1.local_port = newpcb->local_port;
+    session->pair.stage1.key.remote_ip = newpcb->remote_ip.addr;
+    session->pair.stage1.key.remote_port = newpcb->remote_port;
+    session->pair.stage1.key.local_ip = newpcb->local_ip.addr;
+    session->pair.stage1.key.local_port = newpcb->local_port;
     newpcb->rcv_wnd = ROUTE_MSG_LENGTH;
     /* pass newly allocated es to our callbacks */
     tcp_arg(newpcb, session);

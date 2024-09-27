@@ -1,0 +1,16 @@
+#ifndef _H_DEFAULT_SETTING_H_
+#define _H_DEFAULT_SETTING_H_
+
+#define DEFAULT_LISTEN_PORT 8000
+#define DEFATULT_TAP_NAME "tap0"
+#define DEFAULT_MAX_FORWARD_CONNECTIONS (1024*1024) 
+#define MAX_NETIF_NUM 16
+#define ROUTE_MSG_LENGTH 32
+
+#define IP(a, b, c, d) ((a<<24) + (b<<16) + (c<<8) + d)
+
+#define TAP_DEFAULT_IP IP(10, 255, 255, 254)
+#define TAP_DEFAULT_MASK IP(255, 255, 255, 252)
+#define TAP_DEFAULT_IP_USER IP(10, 255, 255, 253)
+
+#endif

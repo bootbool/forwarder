@@ -3,7 +3,7 @@
 
 #include "userspace.h"
 
-#include "global_log.h"
+#include "log_level.h"
 
 
 #define __print printf
